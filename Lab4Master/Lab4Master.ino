@@ -66,7 +66,6 @@ float calculateAngleToTarget(float targetX, float targetY) {
     float angle = atan2(dy, dx);
 
     // Adjust the angle to be in the range [0, 2pi]
-     // Might have to change if the angle is less than -2pi or greater than 2pi??? I'm not sure yet lol
     if (angle < 0) {
         angle += 2 * PI;
     }
@@ -80,6 +79,7 @@ int checkTarget (currentX, currentY){
     goalnum++;
   }//if
 }//checkTarget
+
 //--------------------------------------------PID&MOVE--------------------------------------------------------------
 //---PID 
 float pidcalc (float measuredangle, float desiredangle) {

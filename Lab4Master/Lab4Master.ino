@@ -28,16 +28,35 @@ float rightSpeed;
 float leftSpeed;
 float targetX;
 float targetY;
+float rightDistance;
+float leftDistance;
+const float CENTER_OF_ROBOT = 8.5;
+int currgoal;
 
+// Function prototypes
+float pidcalc(float measuredangle, float desiredangle);
+float calculateDeltaS(float rightDistance, float leftDistance);
+float calculateDeltaTheta(float rightDistance, float leftDistance, float wheelSeparation);
+void calculateDeltaXY(float deltaS, float deltaTheta, float& deltaX, float& deltaY, float currentTheta);
+float calculateDistanceToTarget(float targetX, float targetY);
+float calculateAngleToTarget(float targetX, float targetY);
+void checkTarget(float currentX, float currentY);
+void Move(float piddiff);
 
 void setup() {
   // put your setup code here, to run once:
+  Serial.begin(57600);
+  startingUp();
+  motors.flipLeftMotor(true);
+  motors.flipRightMotor(true);
+  currgoal = 0;
 
+  startSong();
 }
 
 void loop() {
   // put your main code here, to run repeatedly:
-
+  Move(pidcalc(calculateDeltaTheta(rightDistance, leftDistance, CENTER_OF_ROBOT),calculateAngleToTarget(xGoals[currgoal], yGoals[currgoal])));
 }
 
 // Function to calculate change in distance traveled by the center point of the robot between the wheels
@@ -87,10 +106,11 @@ void checkTarget(float currentX, float currentY) {
         delay(1000);
         goalnum++;
     }
+}
 
 //--------------------------------------------PID&MOVE--------------------------------------------------------------
 //---PID 
-float pidcalc (float measuredangle, float desiredangle) {
+float pidcalc(float measuredangle, float desiredangle) {
   const double kp = 0.0; // Adjust kp for quicker response    
   const double ki = 0.0; // Reduce ki for less integration   
   const double kd = 0.0; // Increase kd for faster damping  
@@ -130,4 +150,24 @@ void Move(float piddiff){
   motors.setSpeeds(rightSpeed, leftSpeed); 
 }//move
 
+void startingUp(){
+  buzzer.play("c32");
+  delay(200);
+  buzzer.play("e32");
+  delay(200);
+  buzzer.play("g32");
+  delay(400);
+  buzzer.play("d32");
+  delay(600);
+  buzzer.play("c33");
+  delay(400);
+}
+
+void startSong(){
+  buzzer.play("c32");
+  delay(100);
+  buzzer.play("e32");
+  delay(100);
+  buzzer.play("g32");
+}
 

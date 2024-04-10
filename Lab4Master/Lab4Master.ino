@@ -21,6 +21,15 @@ const int NUMBER_OF_GOALS = 3;
 float xGoals[NUMBER_OF_GOALS] = {30, 30, 0};
 float yGoals[NUMBER_OF_GOALS] = {30, 60, 0};
 
+float currentX;
+float currentY;
+int goalnum;
+float rightSpeed;
+float leftSpeed;
+float targetX;
+float targetY;
+
+
 void setup() {
   // put your setup code here, to run once:
 
@@ -72,13 +81,12 @@ float calculateAngleToTarget(float targetX, float targetY) {
     return angle;
 }
 
-int checkTarget (currentX, currentY){
-  if (((targetX - 2) < currentX) && (currentX < (targetX + 2)) && ((targetY - 2) < currentY) && (currentY < (targetY + 2))){
-    motors.setSpeeds(0,0);
-    delay (1000);
-    goalnum++;
-  }//if
-}//checkTarget
+void checkTarget(float currentX, float currentY) {
+    if (((targetX - 2) < currentX) && (currentX < (targetX + 2)) && ((targetY - 2) < currentY) && (currentY < (targetY + 2))) {
+        motors.setSpeeds(0, 0);
+        delay(1000);
+        goalnum++;
+    }
 
 //--------------------------------------------PID&MOVE--------------------------------------------------------------
 //---PID 

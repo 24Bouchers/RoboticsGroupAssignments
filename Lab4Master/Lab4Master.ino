@@ -56,23 +56,23 @@ void setup() {
 void loop() {
   // put your main code here, to run repeatedly:
 
-}
+}//loop
 
 // Function to calculate change in distance traveled by the center point of the robot between the wheels
 float calculateDeltaS(float rightDistance, float leftDistance) {
     return (rightDistance + leftDistance) / 2.0;
-}
+}//calculateDeltaS
 
 // Function to calculate change in angle
 float calculateDeltaTheta(float rightDistance, float leftDistance, float wheelSeparation) {
     return (rightDistance - leftDistance) / wheelSeparation;
-}
+}//calculateDeltaTheta
 
 // Function to calculate change in x and y position
 void calculateDeltaXY(float deltaS, float deltaTheta, float& deltaX, float& deltaY, float currentTheta) {
     deltaX = deltaS * cos(currentTheta + deltaTheta / 2.0);
     deltaY = deltaS * sin(currentTheta + deltaTheta / 2.0);
-}
+}//calculateDeltaXY
 
 float calculateDistanceToTarget(float targetX, float targetY) {
     // Calculate the difference between current position and target position in x and y directions
@@ -82,7 +82,7 @@ float calculateDistanceToTarget(float targetX, float targetY) {
     float distance = sqrt(dx * dx + dy * dy);
 
     return distance;
-}
+}//calculateDistanceToTarget
 
 float calculateAngleToTarget(float targetX, float targetY) {
     // Calculate the difference between current position and target position in x and y directions
@@ -95,16 +95,17 @@ float calculateAngleToTarget(float targetX, float targetY) {
     // Adjust the angle to be in the range [0, 2pi]
     if (angle < 0) {
         angle += 2 * PI;
-    }
+    }//if 
     return angle;
-}
+}//calculateAngleToTarget
 
 void checkTarget(float currentX, float currentY) {
     if (((targetX - 2) < currentX) && (currentX < (targetX + 2)) && ((targetY - 2) < currentY) && (currentY < (targetY + 2))) {
         motors.setSpeeds(0, 0);
         delay(1000);
         goalnum++;
-    }
+    }//if
+}//checkTarget
 //--------------------------------------------CHECK_ENCODERS--------------------------------------------------------------
 void checkEncoders() {
   currentMillis = millis();

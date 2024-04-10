@@ -73,6 +73,13 @@ float calculateAngleToTarget(float targetX, float targetY) {
     return angle;
 }
 
+int checkTarget (currentX, currentY){
+  if (((targetX - 2) < currentX) && (currentX < (targetX + 2)) && ((targetY - 2) < currentY) && (currentY < (targetY + 2))){
+    motors.setSpeeds(0,0);
+    delay (1000);
+    goalnum++;
+  }//if
+}//checkTarget
 //--------------------------------------------PID&MOVE--------------------------------------------------------------
 //---PID 
 float pidcalc (float measuredangle, float desiredangle) {

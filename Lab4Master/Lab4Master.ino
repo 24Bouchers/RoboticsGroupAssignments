@@ -13,6 +13,24 @@ Encoders encoders;
 Buzzer buzzer; 
 Motors motors;
 
+//check encoders
+unsigned long currentMillis;
+unsigned long prevMillis;
+const unsigned long PERIOD = 50;  
+
+long countsLeft = 0;
+long countsRight = 0;
+long prevLeft = 0;
+long prevRight = 0;
+
+const int CLICKS_PER_ROTATION = 12;
+const float GEAR_RATIO = 75.81F;
+const float WHEEL_DIAMETER = 3.2;
+const float WHEEL_CIRCUMFERENCE = 10.531;
+
+float Sl = 0.0F;
+float Sr = 0.0F;
+
 //PID 
 int SPEED_LIMIT = 200;
 
@@ -87,6 +105,29 @@ void checkTarget(float currentX, float currentY) {
         delay(1000);
         goalnum++;
     }
+//--------------------------------------------CHECK_ENCODERS--------------------------------------------------------------
+void checkEncoders() {
+  currentMillis = millis();
+  if (currentMillis - prevMillis >= PERIOD) {
+    countsLeft += encoders.getCountsAndResetLeft();
+    countsRight += encoders.getCountsAndResetRight();
+
+    //add the *-1 to accomdate for backwards direction
+    
+    Sl += (((countsLeft - prevLeft) / (CLICKS_PER_ROTATION * GEAR_RATIO) * WHEEL_CIRCUMFERENCE)* -1);
+    Sr += (((countsRight - prevRight) / (CLICKS_PER_ROTATION * GEAR_RATIO) * WHEEL_CIRCUMFERENCE)*-1);
+
+    prevLeft = countsLeft;
+    prevRight = countsRight;
+    prevMillis = currentMillis;
+
+    Serial.print("Left: ");
+    Serial.print(Sl);
+    Serial.print(" Right: ");
+    Serial.println(Sr);//making it negtive for direction 
+  }//if
+}//check Encoders
+
 
 //--------------------------------------------PID&MOVE--------------------------------------------------------------
 //---PID 

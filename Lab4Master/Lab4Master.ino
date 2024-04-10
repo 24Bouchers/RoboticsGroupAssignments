@@ -13,6 +13,24 @@ Encoders encoders;
 Buzzer buzzer; 
 Motors motors;
 
+//check encoders
+unsigned long currentMillis;
+unsigned long prevMillis;
+const unsigned long PERIOD = 50;  
+
+long countsLeft = 0;
+long countsRight = 0;
+long prevLeft = 0;
+long prevRight = 0;
+
+const int CLICKS_PER_ROTATION = 12;
+const float GEAR_RATIO = 75.81F;
+const float WHEEL_DIAMETER = 3.2;
+const float WHEEL_CIRCUMFERENCE = 10.531;
+
+float Sl = 0.0F;
+float Sr = 0.0F;
+
 //PID 
 int SPEED_LIMIT = 200;
 
@@ -57,23 +75,23 @@ void setup() {
 void loop() {
   // put your main code here, to run repeatedly:
   Move(pidcalc(calculateDeltaTheta(rightDistance, leftDistance, CENTER_OF_ROBOT),calculateAngleToTarget(xGoals[currgoal], yGoals[currgoal])));
-}
+}//loop
 
 // Function to calculate change in distance traveled by the center point of the robot between the wheels
 float calculateDeltaS(float rightDistance, float leftDistance) {
     return (rightDistance + leftDistance) / 2.0;
-}
+}//calculateDeltaS
 
 // Function to calculate change in angle
 float calculateDeltaTheta(float rightDistance, float leftDistance, float wheelSeparation) {
     return (rightDistance - leftDistance) / wheelSeparation;
-}
+}//calculateDeltaTheta
 
 // Function to calculate change in x and y position
 void calculateDeltaXY(float deltaS, float deltaTheta, float& deltaX, float& deltaY, float currentTheta) {
     deltaX = deltaS * cos(currentTheta + deltaTheta / 2.0);
     deltaY = deltaS * sin(currentTheta + deltaTheta / 2.0);
-}
+}//calculateDeltaXY
 
 float calculateDistanceToTarget(float targetX, float targetY) {
     // Calculate the difference between current position and target position in x and y directions
@@ -83,7 +101,7 @@ float calculateDistanceToTarget(float targetX, float targetY) {
     float distance = sqrt(dx * dx + dy * dy);
 
     return distance;
-}
+}//calculateDistanceToTarget
 
 float calculateAngleToTarget(float targetX, float targetY) {
     // Calculate the difference between current position and target position in x and y directions
@@ -96,17 +114,40 @@ float calculateAngleToTarget(float targetX, float targetY) {
     // Adjust the angle to be in the range [0, 2pi]
     if (angle < 0) {
         angle += 2 * PI;
-    }
+    }//if 
     return angle;
-}
+}//calculateAngleToTarget
 
 void checkTarget(float currentX, float currentY) {
     if (((targetX - 2) < currentX) && (currentX < (targetX + 2)) && ((targetY - 2) < currentY) && (currentY < (targetY + 2))) {
         motors.setSpeeds(0, 0);
         delay(1000);
         goalnum++;
-    }
-}
+    }//if
+}//checkTarget
+//--------------------------------------------CHECK_ENCODERS--------------------------------------------------------------
+void checkEncoders() {
+  currentMillis = millis();
+  if (currentMillis - prevMillis >= PERIOD) {
+    countsLeft += encoders.getCountsAndResetLeft();
+    countsRight += encoders.getCountsAndResetRight();
+
+    //add the *-1 to accomdate for backwards direction
+    
+    Sl += (((countsLeft - prevLeft) / (CLICKS_PER_ROTATION * GEAR_RATIO) * WHEEL_CIRCUMFERENCE)* -1);
+    Sr += (((countsRight - prevRight) / (CLICKS_PER_ROTATION * GEAR_RATIO) * WHEEL_CIRCUMFERENCE)*-1);
+
+    prevLeft = countsLeft;
+    prevRight = countsRight;
+    prevMillis = currentMillis;
+
+    Serial.print("Left: ");
+    Serial.print(Sl);
+    Serial.print(" Right: ");
+    Serial.println(Sr);//making it negtive for direction 
+  }//if
+}//check Encoders
+
 
 //--------------------------------------------PID&MOVE--------------------------------------------------------------
 //---PID 

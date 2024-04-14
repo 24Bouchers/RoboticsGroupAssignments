@@ -38,12 +38,12 @@ float Sr = 0.0F;
 
 //PID 
 int MAX_SPEED = 400;
-float MIN_SPEED = 100;
+float MIN_SPEED = -400;
 
 float rightSpeed = 0;
 float leftSpeed = 0;
 
-const double KP = 0.5; // Adjust kp for quicker response    
+const double KP = 1.0; // Adjust kp for quicker response    
 const double KI = 0.0; // Reduce ki for less integration   
 const double KD = 0.2; // Increase kd for faster damping  
 
@@ -60,7 +60,7 @@ float targetY =yGoals[goalnum];
 
 float currx = 0;
 float curry = 0;
-float currtheta = 3.14/2; //90 in radians?
+float currtheta = -1.571;//0;//1.571; //90 in radians?
 
 const float WHEEL_DIS = 8.5;
 
@@ -102,19 +102,27 @@ void loop() {
 
 //METHIDS------------------------------------------------------------------------------
 void PRINT(){
-  Serial.print("|LSpeed: ");
-  Serial.print(leftSpeed);
-  Serial.print("|RSpeed: ");
-  Serial.print(rightSpeed);
+  Serial.print("|Lmes: ");
+  Serial.print(Sl);
+  Serial.print("|Rmes: ");
+  Serial.print(Sr);
+  
+  
+  //Serial.print("|LSpeed: ");
+  //Serial.print(leftSpeed);
+  //Serial.print("|RSpeed: ");
+  //Serial.print(rightSpeed);
   Serial.print("|currX: ");
   Serial.print(currx);
   Serial.print("|curry: ");
   Serial.print(curry);
+  Serial.print("|currtheta: ");
+  Serial.print(currtheta);
   Serial.print("|Tarx: ");
   Serial.print(targetX);
   Serial.print("|targetY: ");
   Serial.print(targetY);
-  Serial.print("|dS: ");
+  /*Serial.print("|dS: ");
   Serial.print(dS);
   Serial.print("|dT: ");
   Serial.print(dT);
@@ -122,6 +130,7 @@ void PRINT(){
   Serial.print(dX);
   Serial.print("|dY: ");
   Serial.print(dY);
+ */
  Serial.println(" ");
 }//print
 
@@ -129,15 +138,15 @@ void PRINT(){
 void calculatepos (){
   dS = (Sr + Sl)/2;
   dT = (Sr - Sl)/WHEEL_DIS;
-  dX = dS * cos(currtheta + (dT/2.0));
-  dY = dS * sin(currtheta + (dT/2.0));
+  dX = (dS * sin(currtheta + (dT/2.0))) *-1; //should be cos
+  dY = dS * cos(currtheta + (dT/2.0)); // should be sin 
   }//calculate pos
 
 //this updates the values of pos for the next calculation
 void updatepos (){
-  currx = currx + dX;
-  curry = curry + dY;
-  currtheta = currtheta + dT; 
+  currx = dX;
+  curry = dY;
+  currtheta = dT; 
 }//deltaXY
 
 //this one gives the distnce, alllowing us to slow down
@@ -147,6 +156,8 @@ float targetDistance() {
     float xdiff = targetX - currx; 
     float ydiff = targetY - curry; 
     distance = sqrt(xdiff * xdiff + ydiff * ydiff);
+    Serial.print("|distnace: ");
+    Serial.print(distance);
   return distance;
 }//target
 
@@ -159,10 +170,10 @@ float targetAngle() {
     float dx = targetX - currx; 
     float dy = targetY - curry; 
     float angle = atan2(dy, dx);
-    // Adjust the angle to be in the range [0, 2pi]
-    if (angle < 0) {
-        angle += 2 * PI;
-    }
+    //
+    //angle = (angle*PI)/180;
+    Serial.print("|TargetANGLE: ");
+    Serial.print(angle);
     return angle;
 }//targetangle
 
@@ -182,6 +193,8 @@ float pidcalc (float desiredangle) {
   previousError = error; 
   //sum 
   float pidResult = proportional + integral + derivative; 
+
+  pidResult = constrain(pidResult, -3.14, 3.14);
   //apply the sum to the motors, one will be +pidSUm, the other -pidSum 
   Serial.print("|Piddiff: "); 
   Serial.print(pidResult); 
@@ -255,12 +268,12 @@ bool targetRange() {
 void checkEncoders() {
   currentMillis = millis();
   if (currentMillis - prevMillis >= PERIOD) {
-    countsLeft += encoders.getCountsAndResetLeft();
-    countsRight += encoders.getCountsAndResetRight();
+    countsLeft += encoders.getCountsAndResetRight();
+    countsRight += encoders.getCountsAndResetLeft();
 
     // Calculate the distance traveled based on the encoder counts
-    float distanceLeft = (countsLeft - prevLeft) / (CLICKS_PER_ROTATION * GEAR_RATIO) * WHEEL_CIRCUMFERENCE;
-    float distanceRight = (countsRight - prevRight) / (CLICKS_PER_ROTATION * GEAR_RATIO) * WHEEL_CIRCUMFERENCE;
+    float distanceLeft = (((countsLeft - prevLeft) / (CLICKS_PER_ROTATION * GEAR_RATIO) * WHEEL_CIRCUMFERENCE)*-1);
+    float distanceRight = (((countsRight - prevRight) / (CLICKS_PER_ROTATION * GEAR_RATIO) * WHEEL_CIRCUMFERENCE)*-1);
     
     // Update the values of Sl and Sr
     Sl += distanceLeft;

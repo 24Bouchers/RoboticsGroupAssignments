@@ -45,7 +45,7 @@ float leftSpeed = 0;
 
 const double KP = 0.5; // Adjust kp for quicker response    
 const double KI = 0.0; // Reduce ki for less integration   
-const double KD = 0.0; // Increase kd for faster damping  
+const double KD = 0.2; // Increase kd for faster damping  
 
 //GOALS 
 const int NUMBER_OF_GOALS = 3;
@@ -73,7 +73,6 @@ float dY = 0;
 
 //end
 bool end = false;
-bool within = false; 
 const int margin_of_error = 2;
 
 //SETUP&LOOP-----------------------------------------------------------------------------------------------
@@ -154,9 +153,6 @@ float targetDistance() {
 //NOW THAT WE HAVE POS, WE CAN CALCULATE THINGS BASED ON IT we want PID to move to the corret orientation
 //MOST WONT BE USED BUT GOOD TO HAVE
 //takes the actual theta, and then determines desidredtheta, and to get desired theta, we need to calculate that based on the slope of a line
-
-
-
 //yeilds the target angle we neeed for pid calc
 float targetAngle() {
     // Calculate the difference between current position and target position in x and y directions
@@ -196,7 +192,7 @@ float pidcalc (float desiredangle) {
 void checkTarget(float distance) {
     //we can just (theorically) check if the distance is within -2 - 2
     
-    if (within){ 
+    if (targetRange()){ 
         motors.setSpeeds(0,0);
         buzzer.play("c32");
         delay(100);
@@ -210,8 +206,8 @@ void checkTarget(float distance) {
         goalnum++;
         //reassing
         
-       targetX =xGoals[goalnum];
-       targetY =yGoals[goalnum];
+       targetX = xGoals[goalnum];
+       targetY = yGoals[goalnum];
   
     }//if 
 
@@ -233,21 +229,27 @@ void checkTarget(float distance) {
 }//check target 
 
 
+bool targetRange() {
+  bool x_bounds = false;
+  bool y_bounds = false;
 
-void targetrange()
-{
-if (((targetX - margin_of_error) < currx && currx < (targetX + margin_of_error))){
-  if (((targetY - margin_of_error) < curry && curry < (targetY + margin_of_error))){
-    within = true;
-  }//ify/both good
-  else {
-  within = false;
+  // Check if the current position is within the specified margin of error for the x-axis
+  if (targetX - margin_of_error <= currx && currx <= targetX + margin_of_error) {
+    x_bounds = true;
   }
-}//ifx
-else {
-  within = false; 
+
+  // Check if the current position is within the specified margin of error for the y-axis
+  if (targetY - margin_of_error <= curry && curry <= targetY + margin_of_error) {
+    y_bounds = true;
+  }
+  if(x_bounds && y_bounds){
+    return true;
+  }
+  else
+  {
+    return false;
+  }
 }
-}//target range
 
 //--------------------------------------------CHECK_ENCODERS--------------------------------------------------------------
 void checkEncoders() {
@@ -256,16 +258,21 @@ void checkEncoders() {
     countsLeft += encoders.getCountsAndResetLeft();
     countsRight += encoders.getCountsAndResetRight();
 
-    //add the *-1 to accomdate for backwards direction
+    // Calculate the distance traveled based on the encoder counts
+    float distanceLeft = (countsLeft - prevLeft) / (CLICKS_PER_ROTATION * GEAR_RATIO) * WHEEL_CIRCUMFERENCE;
+    float distanceRight = (countsRight - prevRight) / (CLICKS_PER_ROTATION * GEAR_RATIO) * WHEEL_CIRCUMFERENCE;
     
-    Sl += (((countsLeft - prevLeft) / (CLICKS_PER_ROTATION * GEAR_RATIO) * WHEEL_CIRCUMFERENCE)*-1);
-    Sr += (((countsRight - prevRight) / (CLICKS_PER_ROTATION * GEAR_RATIO) * WHEEL_CIRCUMFERENCE)*-1);
+    // Update the values of Sl and Sr
+    Sl += distanceLeft;
+    Sr += distanceRight;
 
+    // Update the previous counts
     prevLeft = countsLeft;
     prevRight = countsRight;
     prevMillis = currentMillis;
-  }//if
-}//check Encoders
+  }
+}
+
 
 
 //slowing down function 
@@ -277,20 +284,7 @@ void checkEncoders() {
 void Move(float piddiff){
   
 //left is right and right is left 
-  rightSpeed = rightSpeed - piddiff; 
-  leftSpeed = leftSpeed + piddiff; 
-  //limtor to prvent values from scalling too much 
-  if(leftSpeed < MIN_SPEED){
-    leftSpeed = MIN_SPEED;
-  }
-  if(rightSpeed < MIN_SPEED){
-    rightSpeed = MIN_SPEED;
-  }
-  if(leftSpeed > MAX_SPEED){
-    leftSpeed = MAX_SPEED;
-  }
-  if(rightSpeed > MAX_SPEED){
-    rightSpeed = MAX_SPEED;
-  }
+  rightSpeed = constrain(rightSpeed + piddiff, MIN_SPEED, MAX_SPEED);
+  leftSpeed = constrain(leftSpeed - piddiff, MIN_SPEED, MAX_SPEED);
   motors.setSpeeds(rightSpeed, leftSpeed); 
 }//move

@@ -49,8 +49,8 @@ const double KD = 0.0; // Increase kd for faster damping
 
 //GOALS 
 const int NUMBER_OF_GOALS = 3;
-float xGoals[NUMBER_OF_GOALS] = {100, 30, 0};
-float yGoals[NUMBER_OF_GOALS] = {100, 60, 0};
+float xGoals[NUMBER_OF_GOALS] = {30, 30, 0};
+float yGoals[NUMBER_OF_GOALS] = {30, 60, 0};
 
 int goalnum = 0;
 float targetX =xGoals[goalnum];
@@ -73,6 +73,8 @@ float dY = 0;
 
 //end
 bool end = false;
+bool within = false; 
+const int margin_of_error = 2;
 
 //SETUP&LOOP-----------------------------------------------------------------------------------------------
 void setup() {
@@ -193,34 +195,59 @@ float pidcalc (float desiredangle) {
 //CHECKTARGET--------------------------------------------------------------
 void checkTarget(float distance) {
     //we can just (theorically) check if the distance is within -2 - 2
-    if (28 < currx && currx < 32){ 
+    
+    if (within){ 
         motors.setSpeeds(0,0);
+        buzzer.play("c32");
+        delay(100);
         buzzer.play("e32");
+        delay(100);
+        buzzer.play("g32");        
         delay(1000);
+        Serial.print("--------------------------CHECKPOINT #");
+        Serial.print(goalnum);
+        Serial.println("--------------------------");
         goalnum++;
-        //setting new goals
-        targetX = xGoals[goalnum];
-        targetY = yGoals[goalnum];
+        //reassing
+        
+       targetX =xGoals[goalnum];
+       targetY =yGoals[goalnum];
+  
     }//if 
 
-    if (goalnum > (NUMBER_OF_GOALS - 1))    {
+    if (goalnum > (NUMBER_OF_GOALS - 1))    
+    {
       buzzer.play("c32");
-      buzzer.play("d32");
+      delay(400);
       buzzer.play("e32");
-      buzzer.play("f32");
+      delay(400);
       buzzer.play("g32");
-      buzzer.play("a32");
-      buzzer.play("b32");
-      buzzer.play("a32");
-      buzzer.play("g32");
-      buzzer.play("f32");
-      buzzer.play("e32");
+      delay(600);
       buzzer.play("d32");
-      buzzer.play("c32");
-
+      delay(600);
+      buzzer.play("c33");
+      delay(800);
+      Serial.println("--------------------------DONE---------------------------");
       end = true; 
     }//if
 }//check target 
+
+
+
+void targetrange()
+{
+if (((targetX - margin_of_error) < currx && currx < (targetX + margin_of_error))){
+  if (((targetY - margin_of_error) < curry && curry < (targetY + margin_of_error))){
+    within = true;
+  }//ify/both good
+  else {
+  within = false;
+  }
+}//ifx
+else {
+  within = false; 
+}
+}//target range
 
 //--------------------------------------------CHECK_ENCODERS--------------------------------------------------------------
 void checkEncoders() {

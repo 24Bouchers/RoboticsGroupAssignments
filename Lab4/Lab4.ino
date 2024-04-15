@@ -44,13 +44,17 @@ float rightSpeed = 0;
 float leftSpeed = 0;
 
 const double KP = 5.0;  // Adjust kp for quicker response
-const double KI = 2;  // Reduce ki for less integration
-const double KD = 3;  // Increase kd for faster damping
+const double KI = 3.0;  // Reduce ki for less integration
+const double KD = 3.0;  // Increase kd for faster damping
+
+// Define global variables to store the initial position
+double initialX = 0.0;
+double initialY = 0.0;
 
 //GOALS
 const int NUMBER_OF_GOALS = 3;
-float xGoals[NUMBER_OF_GOALS] = { 30, 30, 0 };
-float yGoals[NUMBER_OF_GOALS] = { 30, 60, 0 };
+float xGoals[NUMBER_OF_GOALS] = { 30, 0, -30 };
+float yGoals[NUMBER_OF_GOALS] = { 30, 30, -60 };
 
 int goalnum = 0;
 float targetX = xGoals[goalnum];
@@ -177,6 +181,14 @@ float targetAngle() {
   return angle;
 }  //targetangle
 
+void resetPosition() {
+    // Reset the position to the origin
+    Sl = 0;
+    Sr = 0;
+    dX = 0;
+    dY = 0;
+    currtheta = 0;
+}
 
 //---PID
 float pidcalc(float desiredangle) {
@@ -187,7 +199,8 @@ float pidcalc(float desiredangle) {
   double proportional = KP * error;
   //Ki get intergral correction
   kiTotal += error;
-  double integral = KI * kiTotal;
+  //double integral = KI * kiTotal;
+  double integral = constrain(integral, -3.14 / KI, 3.14 / KI);
   //Kd derivative
   float derivative = KD * (error - previousError);
   previousError = error;
@@ -217,8 +230,11 @@ void checkTarget(float distance) {
     Serial.print(goalnum);
     Serial.println("--------------------------");
     goalnum++;
+    currtheta = 1.571;
     //reassing
-
+    resetPosition();
+    Serial.println("--------------------------POSITION RESET--------------------------");
+    
     targetX = xGoals[goalnum];
     targetY = yGoals[goalnum];
 

@@ -21,12 +21,20 @@ Buzzer buzzer;
 Motors motors;
 
 //-------------------------VARS---------------------------
-float currTheta = 0;
 
 
 //check encoders
 unsigned long currentMillis;
-unsigned long prevMillis;
+unsigned long encoder_prevMillis;
+unsigned long calc_prevMillis;
+unsigned long check_prevMillis;
+unsigned long calc1_prevMillis;
+unsigned long calc2_prevMillis;
+unsigned long check2_prevMillis;
+unsigned long move_prevMillis;
+unsigned long print_prevMillis;
+
+
 const unsigned long ENCODER_PERIOD = 10;
 const unsigned long CALC_PERIOD = 10;
 const unsigned long CHECK_PERIOD = 10;
@@ -47,8 +55,8 @@ float Sl = 0.0F;
 float Sr = 0.0F;
 
 //speeds
-int MAX_SPEED = 400;
-float MIN_SPEED = -75;
+int MAX_SPEED = 100;
+float MIN_SPEED = 0;
 float BASE_SPEED = 50;
 
 float rightSpeed = 0;
@@ -68,7 +76,7 @@ int goalnum = 0;
 float targetX = xGoals[goalnum];
 float targetY = yGoals[goalnum];
 float targetTheta = 0;//starts at 0 regardless 
-float targetDistance = 100000000000000000000000;
+float targetDistance = 1000000000000000000000;
 
 const float WHEEL_DIS = 8.5;//possibly 8.2
 
@@ -79,7 +87,11 @@ float dT = 0;
 float dX = 0;
 float dY = 0;
 
-//
+//position 
+
+float currx = 0; 
+float curry = 0;
+float currtheta = 1.57;
 
 float pidResult = 0;
 
@@ -98,80 +110,99 @@ void loop() {
   if (!end) {
     checkEncoders();  //checks the distance
     calculatepos(); //
-    Move(pidcalc());
+    updatepos();
+    pidcalc();
+    Move();
     checkTarget();
-    PRINT();
+  //  PRINT();
   }  //if
 }  //loop
+//---------------------METHODS----------------------------
+//this updates the values of pos for the next calculation
+void updatepos (){
+  currentMillis = millis();
+  if (currentMillis - calc2_prevMillis >= CALC_PERIOD) {
+  Serial.println("DOING UPDATE");
+  
+  currx = currx + dX;
+  curry = curry + dY;
+  currtheta = currtheta + dT; 
+
+  calc2_prevMillis = currentMillis;
+  }//timer  
+
+}//deltaXY
+
+//-------------------------MATH---------------------------
+
+void calculatepos() {
+  currentMillis = millis();
+  if (currentMillis - calc_prevMillis >= CALC_PERIOD) {
+    Serial.println("DOING CALC");
+  float xdiff = targetX - currx;
+  float ydiff = targetY - curry;
+  
+  dS = (Sr + Sl) / 2;
+  dT = (Sr - Sl) / WHEEL_DIS;
+  
+  //the first dT in these may need to be current theta, but IDK
+  dX = (dS * cos(currtheta + (dT / 2.0)));  //should be cos
+  dY = dS * sin(currtheta + (dT / 2.0));         // should be sin
+
+  // Calculate the difference between current position and target position in x and y directions
+  targetDistance = sqrt(xdiff * xdiff + ydiff * ydiff);
+
+  targetTheta = atan2(ydiff, xdiff);
+  calc_prevMillis = currentMillis;
+  }//timer
+}  //calculate pos
 
 //-------------------------MOVE---------------------------
 
-void Move(float piddiff) {
+void Move() {
   currentMillis = millis();
-  if (currentMillis - prevMillis >= MOVE_PERIOD) {
+  if (currentMillis - move_prevMillis >= MOVE_PERIOD) {
+  Serial.println("DOING MOVE");
   //slowing down, but not slower than min speed 
   if (targetDistance < 10)
     {
       MAX_SPEED = constrain (MAX_SPEED/2, MIN_SPEED, 400);
     }//i
 
-  //rightSpeed = rightSpeed - piddiff;
-  //leftSpeed = leftSpeed + piddiff; 
-  rightSpeed = constrain(rightSpeed - piddiff, MIN_SPEED, MAX_SPEED);
-  leftSpeed = constrain(leftSpeed + piddiff, MIN_SPEED, MAX_SPEED);
+  rightSpeed = rightSpeed + pidResult;
+  leftSpeed = leftSpeed - pidResult; 
+  //rightSpeed = constrain(rightSpeed - piddiff, MIN_SPEED, MAX_SPEED);
+  //leftSpeed = constrain(leftSpeed + piddiff, MIN_SPEED, MAX_SPEED);
   motors.setSpeeds(leftSpeed + BASE_SPEED, rightSpeed + BASE_SPEED);
-  prevMillis = currentMillis;
+  move_prevMillis = currentMillis;
+  Serial.println("DONE MOVE");
   }//timer
 }  //move
 
 
-//-------------------------MATH---------------------------
-
-void calculatepos() {
-  currentMillis = millis();
-  if (currentMillis - prevMillis >= CALC_PERIOD) {
-
-  float xdiff = targetX - dX;
-  float ydiff = targetY - dY;
-  
-  dS = (Sr + Sl) / 2;
-  dT = (Sl - Sr) / WHEEL_DIS;
-  currTheta += dT;
-  //the first dT in these may need to be current theta, but IDK
-  dX = (dS * cos(currTheta + (dT / 2.0)));  //should be cos
-  dY = dS * sin(currTheta + (dT / 2.0));         // should be sin
-
-  // Calculate the difference between current position and target position in x and y directions
-  targetDistance = sqrt(xdiff * xdiff + ydiff * ydiff);
-
-  targetTheta = atan2(ydiff, xdiff);
-prevMillis = currentMillis;
-  }//timer
-}  //calculate pos
-
 //-------------------------PID---------------------------
 float pidcalc() {
   currentMillis = millis();
-  if (currentMillis - prevMillis >= CALC_PERIOD) {
+  if (currentMillis - calc1_prevMillis >= CALC_PERIOD) {
+    Serial.println("DOING PID");
 
-  
   double kiTotal = 0.0;
   double previousError = 0.0;
-  double error = targetTheta - dT;
+  double error = targetTheta - currtheta;
   //Kp get the proportional correction
   double proportional = KP * error;
   //Ki get intergral correction
-  kiTotal += error;
-  double integral = KI * kiTotal;
+  //kiTotal += error;
+  //double integral = KI * kiTotal;
   //Kd derivative
-  float derivative = KD * (error - previousError);
-  previousError = error;
+  //float derivative = KD * (error - previousError);
+  //previousError = error;
   //sum
-  pidResult = proportional + integral + derivative;
+  pidResult = proportional; //+intergal + derivative;
   //pidResult = constrain(pidResult, -3.14, 3.14);
   //apply the sum to the motors, one will be +pidSUm, the other -pidSum
-  return pidResult;
-  prevMillis = currentMillis;
+  calc1_prevMillis = currentMillis;
+  Serial.println("DONE CALC1");
   }//timer
 }  //PID
 
@@ -179,8 +210,8 @@ float pidcalc() {
 
 void checkTarget() {
   currentMillis = millis();
-  if (currentMillis - prevMillis >= CHECK_PERIOD) {
-
+  if (currentMillis - check_prevMillis >= CHECK_PERIOD) {
+    Serial.println("DOING TARGET");
   //we can just (theorically) check if the distance is within -2 - 2
   if (targetRange()) {
     motors.setSpeeds(0, 0);
@@ -214,22 +245,24 @@ void checkTarget() {
     Serial.println("--------------------------DONE---------------------------");
     end = true;
   }  //if
-  prevMillis = currentMillis;
+  check_prevMillis = currentMillis;
+  Serial.println("DONE CHECK");
   }//timer
 }  //check target
 
 
 bool targetRange() {
    currentMillis = millis();
-  if (currentMillis - prevMillis >= CHECK_PERIOD) {
-
+  if (currentMillis - check2_prevMillis >= CHECK_PERIOD) {
+    Serial.println("DOING TARGET2");
   if (0 - margin_of_error <= targetDistance && targetDistance <= 0 + margin_of_error) {
     return true;
   }
   else {
   return false;
   }
-  prevMillis = currentMillis;
+  check2_prevMillis = currentMillis;
+  Serial.println("DONE TARGET 2");
   }//timer
 }//targetRange
 
@@ -237,7 +270,8 @@ bool targetRange() {
 
 void checkEncoders() {
   currentMillis = millis();
-  if (currentMillis - prevMillis >= ENCODER_PERIOD) {
+  if (currentMillis - encoder_prevMillis >= ENCODER_PERIOD) {
+    Serial.println("DOING ENCODERS");
     countsLeft += encoders.getCountsAndResetLeft();
     countsRight += encoders.getCountsAndResetRight();
 
@@ -245,14 +279,15 @@ void checkEncoders() {
     float distanceLeft = (((countsLeft - prevLeft) / (CLICKS_PER_ROTATION * GEAR_RATIO) * WHEEL_CIRCUMFERENCE));
     float distanceRight = (((countsRight - prevRight) / (CLICKS_PER_ROTATION * GEAR_RATIO) * WHEEL_CIRCUMFERENCE));
 
-    // Update the values of Sl and Sr
-    Sl += distanceLeft;
-    Sr += distanceRight;
+    // Update the values of Sl and Sr, but not accumulating
+    Sl = distanceLeft;
+    Sr = distanceRight;
 
     // Update the previous counts
     prevLeft = countsLeft;
     prevRight = countsRight;
-    prevMillis = currentMillis;
+    encoder_prevMillis = currentMillis;
+  Serial.println("DONE ENCODERS");
   }//timer
 }//encoders
 
@@ -261,38 +296,44 @@ void checkEncoders() {
 void PRINT() {
 
   currentMillis = millis();
-  if (currentMillis - prevMillis >= ENCODER_PERIOD) {
-   
-    Serial.print("|CurrTheta: ");
-    Serial.print(currTheta);
+  if (currentMillis - print_prevMillis >= ENCODER_PERIOD) {
+    
+    Serial.print("|currY: ");
+    Serial.print(curry);
+    Serial.print("|currX: ");
+    Serial.print(currx);
+    Serial.print("|currTheta: ");
+    Serial.print(currtheta);
     Serial.print("|TargetANGLE: ");
     Serial.print(targetTheta);
-  //Serial.print("|Lmes: ");
-  //Serial.print(Sl);
-  //Serial.print("|Rmes: ");
-  //Serial.print(Sr);
+    //Serial.print("|Lmes: ");
+    //Serial.print(Sl);
+    //Serial.print("|Rmes: ");
+    //Serial.print(Sr);
     Serial.print("|Piddiff: ");
-  Serial.print(pidResult);
-  Serial.print("|distnace: ");
-  Serial.print(targetDistance);
-  Serial.print("|LSpeed: ");
-  Serial.print(leftSpeed);
-  Serial.print("|RSpeed: ");
-  Serial.print(rightSpeed);
-   Serial.print("|dT: ");
-  Serial.print(dT);
-  Serial.print("|dX: ");
-  Serial.print(dX);
-  Serial.print("|dY: "); 
-  Serial.print(dY);
-  Serial.print("|Tarx: ");
-  Serial.print(targetX);
-  Serial.print("|targetY: ");
-  Serial.print(targetY);
+    Serial.print(pidResult);
+    Serial.print("|distnace: ");
+    Serial.print(targetDistance);
+    //Serial.print("|LSpeed: ");
+    //Serial.print(leftSpeed);
+    //Serial.print("|RSpeed: ");
+    //Serial.print(rightSpeed);
+    Serial.print("|dT @ print: ");
+    Serial.print(dT);
+    //Serial.print("|dX: ");
+    //Serial.print(dX);
+    //Serial.print("|dY: "); 
+    //Serial.print(dY);
+    Serial.print("|Tarx: ");
+    Serial.print(targetX);
+    Serial.print("|targetY: ");
+    Serial.print(targetY);
+    
+  
   //Serial.print("|dS: ");
   //Serial.print(dS);
   Serial.println("");
-  prevMillis = currentMillis;
+  print_prevMillis = currentMillis;
   }//timer
 
 }  //print

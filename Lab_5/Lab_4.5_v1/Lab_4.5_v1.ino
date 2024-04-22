@@ -46,7 +46,7 @@ const int CLICKS_PER_ROTATION = 12;
 const float GEAR_RATIO = 75.81F;
 const float WHEEL_DIAMETER = 3.2;
 const float WHEEL_CIRCUMFERENCE = 10.531;
-const float WHEEL_DIS = 8.5;//possibly 8.2
+const float WHEEL_DIS = 9.1;//possibly 8.2
 
 
 float Sl = 0.0F;
@@ -92,9 +92,9 @@ const double KI = 0;  // Reduce ki for less integration
 const double KD = 0;  // Increase kd for faster damping
 
 //----------------------------GOALS
-const int NUMBER_OF_GOALS = 5;
-float xGoals[NUMBER_OF_GOALS] = { 30,  30, -30, -30, 0};
-float yGoals[NUMBER_OF_GOALS] = { 30, -30, 30, -30, 0};
+const int NUMBER_OF_GOALS = 8;
+float xGoals[NUMBER_OF_GOALS] = { 30,  0, -30, 0, -30, 0, 30 , 0};
+float yGoals[NUMBER_OF_GOALS] = { 30, 0, -30, 0, 30, 0, -30 , 0};
 
 int goalnum = 0;
 float targetX = xGoals[goalnum];
@@ -106,6 +106,44 @@ float targetDistance = 1000000000000000000000;
 bool end = false;
 const int margin_of_error = 1.0;
 
+//UltraSonics--------------------------------------------------------------
+
+      //intialize UltraSonic 
+      const int ECHO_PIN = 4;//mine, invert for others 
+      const int TRIG_PIN = 5; 
+
+      //ultrasonic maxes 
+      const int MAX_DISTANCE =200;// (200cm /2 meters)
+
+      //ultrasonic timing
+      unsigned long usCm; 
+      unsigned long usPm;
+      const unsigned long US_PERIOD = 100; 
+
+      //current US distance reading
+      float distance = 0; 
+      
+//Head-----------------------------------------------------------------
+      const int HEAD_SERVO_PIN = 22; //change for andrew 22/margerate/Steve 11
+      int check = 0;  
+      int checkfrequency = 0;
+      int importantdistance = 0; 
+
+      const int checkdefault = 1000;
+      const int distancedefault = 30;
+
+    const int defaulthead = 155;
+    const int fronthead = 74;
+    int headpos = 0;
+    bool front = false;
+    int check2 = 0;
+    int frontScan = 40;
+
+      // Define the minimum and maximum values for check frequency and important distance
+      const int minCheckFrequency = 50;   // Minimum allowed check frequency
+      const int maxCheckFrequency = 1000; // Maximum allowed check frequency
+      const int minImportantDistance = 10; // Minimum allowed important distance
+      const int maxImportantDistance = 200; // Maximum allowed important distance
 
 //-------------------------LOOP---------------------------
 void setup() {
@@ -232,7 +270,6 @@ void checkTarget() {
     //reassing
     targetX = xGoals[goalnum];
     targetY = yGoals[goalnum];
-    BASE_SPEED = 70;
   }  //if 
 
   if (goalnum > (NUMBER_OF_GOALS - 1)) {
@@ -266,16 +303,14 @@ void Move() {
   //slowing down, but not slower than min speed 
   if (targetDistance < 10)
     {
-      //BASE_SPEED = constrain (BASE_SPEED/2, MIN_SPEED, 400);
-    }//i
-
- 
-  //rightSpeed = constrain(rightSpeed - piddiff, MIN_SPEED, MAX_SPEED);
-  //leftSpeed = constrain(leftSpeed + piddiff, MIN_SPEED, MAX_SPEED);
+      BASE_SPEED = constrain(BASE_SPEED/2, MIN_SPEED, 400);
+    }//if
+    else{
+      BASE_SPEED = 70;
+    }
   motors.setSpeeds(BASE_SPEED - pidResult, BASE_SPEED + pidResult);
   check_done = false;
   move_done = true; 
-  //Serial.println("DONE MOVE");
   move_prevMillis = currentMillis;
   }//timer
 }  //move

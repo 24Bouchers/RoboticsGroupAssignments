@@ -14,6 +14,50 @@ using namespace Pololu3piPlus32U4;
 Encoders encoders;
 Buzzer buzzer;
 Motors motors;
+Servo headServo;
+
+//UltraSonics--------------------------------------------------------------
+
+//intialize UltraSonic 
+const int ECHO_PIN = 4; //mine, invert for others 
+const int TRIG_PIN = 5;
+
+//ultrasonic maxes 
+const int MAX_DISTANCE = 200; // (200cm /2 meters)
+
+//ultrasonic timing
+unsigned long usCm;
+unsigned long usPm;
+const unsigned long US_PERIOD = 100;
+
+//current US distance reading
+float distance = 0;
+
+//Head-----------------------------------------------------------------
+const int HEAD_SERVO_PIN = 11; //change for andrew 22/margerate/Steve 11
+int check = 0;
+int checkfrequency = 0;
+int importantdistance = 0;
+
+const int checkdefault = 1000;
+const int distancedefault = 30;
+
+const int defaulthead = 90;
+const int fronthead = 90;
+int headpos = 90;
+bool front = false;
+int check2 = 0;
+int frontScan = 90;
+
+const int HEAD_CENTER_ANGLE = 90;
+const int HEAD_LEFT_ANGLE = 60;
+const int HEAD_RIGHT_ANGLE = 120;
+
+// Define the minimum and maximum values for check frequency and important distance
+const int minCheckFrequency = 50;    // Minimum allowed check frequency
+const int maxCheckFrequency = 1000;  // Maximum allowed check frequency
+const int minImportantDistance = 10; // Minimum allowed important distance
+const int maxImportantDistance = 200; // Maximum allowed important distance
 
 //-------------------------VARS---------------------------
 
@@ -34,14 +78,12 @@ long countsRight = 0;
 long prevLeft = 0;
 long prevRight = 0;
 
-
 //wheel measurements
 const int CLICKS_PER_ROTATION = 12;
 const float GEAR_RATIO = 75.81F;
 const float WHEEL_DIAMETER = 3.2;
 const float WHEEL_CIRCUMFERENCE = 10.531;
-const float WHEEL_DIS = 9.0;  //possibly 8.5
-
+const float WHEEL_DIS = 9.0; //possibly 8.2
 
 float Sl = 0.0F;
 float Sr = 0.0F;
@@ -52,22 +94,20 @@ const unsigned long CALC_PERIOD = 20;
 const unsigned long CHECK_PERIOD = 20;
 const unsigned long MOVE_PERIOD = 20;
 
-//timing bools  //testing with true
-bool encoder_done = false;  //f
-bool calc_done = false;     //f
-bool move_done = true;      // to start the loop...
-bool check_done = false;    //f
+//timing bools
+bool encoder_done = false;
+bool calc_done = false;
+bool move_done = true; // to start the loop...
+bool check_done = false;
 
 //---------------------------speeds
 int MAX_SPEED = 100;
 float MIN_SPEED = 40;
 float BASE_SPEED = 70;
-float leftSpeed = 0; 
-float rightSpeed =0; 
 
 //--------------------------PID & CALC
 
-//position
+//position 
 
 float dS = 0;
 float dT = 0;
@@ -75,53 +115,86 @@ float dX = 0;
 float dY = 0;
 float currx = 0;
 float curry = 0;
-float currtheta = 1.57;//90 degrees
+float currtheta = 1.57;
 
 //--------------------------pid
 float pidResult = 0;
 double kiTotal = 0.0;
 double previousError = 0.0;
-float error = 0;
+float targetError = 0;
 double proportional = 0;
-const double KP = -55.0;  // Adjust kp for quicker response, 30 works
+const double KP = -55.0; // Adjust kp for quicker response
 const double KI = 0;     // Reduce ki for less integration
 const double KD = 0;     // Increase kd for faster damping
 
 //----------------------------GOALS
-const int NUMBER_OF_GOALS = 5;
-float xGoals[NUMBER_OF_GOALS] = { 30, 30, -30, -30, 0 };
-float yGoals[NUMBER_OF_GOALS] = { 30, -30, 30, -30, 0 };
+const int NUMBER_OF_GOALS = 8;
+float xGoals[NUMBER_OF_GOALS] = { 30, 0, -30, 0, -30, 0, 30, 0 };
+float yGoals[NUMBER_OF_GOALS] = { 30, 0, -30, 0, 30, 0, -30, 0 };
 
 int goalnum = 0;
 float targetX = xGoals[goalnum];
 float targetY = yGoals[goalnum];
-float targetTheta = 0;  //starts at 0 regardless
+float targetTheta = 0; //starts at 0 regardless 
 float targetDistance = 1000000000000000000000;
 
 //end
 bool end = false;
 const int margin_of_error = 1.0;
 
-
 //-------------------------LOOP---------------------------
 void setup() {
   Serial.begin(57600);
+  
   motors.flipLeftMotor(true);
-  motors.flipRightMotor(true);
+  motors.flipLeftMotor(true);
+
+  headpos = defaulthead;
+  checkfrequency = checkdefault;
+  importantdistance = distancedefault;
+
+  //initalize head position to start 
+  headServo.attach(HEAD_SERVO_PIN);
+  headServo.write(headpos);
+  
+  //initalize ultra sonic
+  pinMode(ECHO_PIN, INPUT);
+  pinMode(TRIG_PIN, OUTPUT);
+
+  Serial.print("STARTING CF");
+  Serial.println(checkfrequency);
+
+  Serial.println("------------------------------------STARTING UP---------------------------------------------");
+  buzzer.play("c32");
+
+  delay(1000);
 }
+
 void loop() {
   if (!end) {
     checkEncoders();  //checks the distance  ENCODERS
-    calculatepos();   //CALC  CALC
-    checkTarget();    //CHECK
-    Move();           //MOVE
+    //moveHead(HEAD_LEFT_ANGLE);
+   // float leftDistance = averageScan();
+    //moveHead(HEAD_CENTER_ANGLE);
+    //float centerDistance = averageScan();
+    //moveHead(HEAD_RIGHT_ANGLE);
+    //float rightDistance = averageScan();
+    calculatepos(); //CALC  CALC
+    checkTarget(); //CHECK
+    Move(); //MOVE 
     PRINT();
-  }  //if
-  else {
+  } else {
     motors.setSpeeds(0, 0);
-  }  //else
-}  //loop
+  }
+}
+
 //---------------------METHODS----------------------------
+
+//-------------------------HEAD---------------------------
+void moveHead(int angle) {
+  headServo.write(angle);
+  delay(500); // Adjust delay as needed
+}
 
 //-------------------------ENCODERS---------------------------
 void checkEncoders() {
@@ -131,8 +204,8 @@ void checkEncoders() {
     countsRight += encoders.getCountsAndResetRight();
 
     // Calculate the distance traveled based on the encoder counts
-    float distanceLeft = (((countsLeft - prevLeft) / (CLICKS_PER_ROTATION * GEAR_RATIO) * WHEEL_CIRCUMFERENCE)*-1);//for backwards
-    float distanceRight = (((countsRight - prevRight) / (CLICKS_PER_ROTATION * GEAR_RATIO) * WHEEL_CIRCUMFERENCE)*-1);//for backwards
+    float distanceLeft = (((countsLeft - prevLeft) / (CLICKS_PER_ROTATION * GEAR_RATIO) * WHEEL_CIRCUMFERENCE)*-1);
+    float distanceRight = (((countsRight - prevRight) / (CLICKS_PER_ROTATION * GEAR_RATIO) * WHEEL_CIRCUMFERENCE)*-1);
 
     // Update the values of Sl and Sr, but not accumulating
     Sl = distanceLeft;
@@ -141,12 +214,14 @@ void checkEncoders() {
     // Update the previous counts
     prevLeft = countsLeft;
     prevRight = countsRight;
+
     //reset hard time
     encoder_done = true;
     move_done = false;
     encoder_prevMillis = currentMillis;
-  }  //timer
-}  //encoders
+  }
+}
+
 //-------------------------CALC---------------------------
 void calculatepos() {
   currentMillis = millis();
@@ -155,76 +230,50 @@ void calculatepos() {
     float ydiff = targetY - curry;
 
     dS = (Sr + Sl) / 2;
-    dT = (Sl - Sr) / WHEEL_DIS;// forward would be sr - sl 
+    dT = (Sl - Sr) / WHEEL_DIS;
 
-    //the first dT in these may need to be current theta, but IDK
     dX = (dS * cos(currtheta + (dT / 2.0)));  //should be cos
-    dY = dS * sin(currtheta + (dT / 2.0));    // should be sin
+    dY = dS * sin(currtheta + (dT / 2.0));     // should be sin
 
-    // Calculate the difference between current position and target position in x and y directions
     targetDistance = sqrt(xdiff * xdiff + ydiff * ydiff);
-
     targetTheta = atan2(ydiff, xdiff);
 
-
-    //update the values
     currx = currx + dX;
     curry = curry + dY;
-
-
     currtheta = currtheta + dT;
     if (currtheta > 3.14) {
       currtheta = -3.14;
-    }  //if its too big
+    }
 
     if (currtheta < -3.14) {
       currtheta = 3.14;
-    }  //if its too big
+    }
 
-    //PID THINGS
-
-    error = targetTheta - currtheta;
-    //Kp get the proportional correction
-    proportional = KP * error;
-    //Ki get intergral correction
-    //kiTotal += error;
-    //double integral = KI * kiTotal;
-    //Kd derivative
-    //float derivative = KD * (error - previousError);
-    //previousError = error;
-    //sum
-    pidResult = proportional;  //+intergal + derivative;
-    //pidResult = constrain(pidResult, -3.14, 3.14);
-    //apply the sum to the motors, one will be +pidSUm, the other -pidSum
+    targetError = targetTheta - currtheta;
+    proportional = KP * targetError;
+    pidResult = proportional;
     calc_done = true;
     encoder_done = false;
     calc_prevMillis = currentMillis;
-  }  //timer
-}  //calculate pos
-//-------------------------CHECK---------------------------
+  }
+}
 
+//-------------------------CHECK---------------------------
 void checkTarget() {
   currentMillis = millis();
   if (currentMillis - check_prevMillis >= CHECK_PERIOD && calc_done) {
-    //we can just (theorically) check if the distance is within -2 - 2
     if (0 - margin_of_error <= targetDistance && targetDistance <= 0 + margin_of_error) {
       motors.setSpeeds(0, 0);
-      BASE_SPEED = 70;
       buzzer.play("c32");
       delay(100);
       buzzer.play("e32");
       delay(100);
       buzzer.play("g32");
       delay(1000);
-      // Serial.print("--------------------------CHECKPOINT #");
-      //Serial.print(goalnum + 1);
-      //Serial.println("--------------------------");
       goalnum++;
-      //reassing
       targetX = xGoals[goalnum];
       targetY = yGoals[goalnum];
-
-    }  //if
+    }
 
     if (goalnum > (NUMBER_OF_GOALS - 1)) {
       buzzer.play("c32");
@@ -239,43 +288,75 @@ void checkTarget() {
       delay(800);
       Serial.println("--------------------------DONE---------------------------");
       end = true;
-    }  //if
-    //updating time
+    }
+
     check_done = true;
     calc_done = false;
     check_prevMillis = currentMillis;
-  }  //timer
-}  //check target
+  }
+}
 
 //-------------------------MOVE---------------------------
 void Move() {
   currentMillis = millis();
   if (currentMillis - move_prevMillis >= MOVE_PERIOD && check_done) {
-
-    //Serial.println("DOING MOVE");
-    //slowing down, but not slower than min speed
     if (targetDistance < 10) {
-      BASE_SPEED = constrain(BASE_SPEED / 2, MIN_SPEED, MAX_SPEED);
-    }  //i
-
-    else {
+      BASE_SPEED = constrain(BASE_SPEED / 2, MIN_SPEED, 400);
+    } else {
       BASE_SPEED = 70;
     }
-    leftSpeed = BASE_SPEED - pidResult;
-    rightSpeed = BASE_SPEED + pidResult;
-    motors.setSpeeds(leftSpeed,rightSpeed );
+    motors.setSpeeds(BASE_SPEED - pidResult, BASE_SPEED + pidResult);
     check_done = false;
     move_done = true;
     move_prevMillis = currentMillis;
-  }  //timer
-}  //move
+  }
+}
+
+//--ULTRASONIC
+float usReadCm() {
+  usCm = millis();
+  if (usCm > usPm + US_PERIOD) {
+    digitalWrite(TRIG_PIN, LOW);
+    delayMicroseconds(2);
+
+    digitalWrite(TRIG_PIN, HIGH);
+    delayMicroseconds(10);
+    digitalWrite(TRIG_PIN, LOW);
+
+    long duration = pulseIn(ECHO_PIN, HIGH, 380000);
+
+    distance = duration * 0.034 / 2;
+    if (distance > MAX_DISTANCE) distance = MAX_DISTANCE;
+    if (distance == 0) {
+      Serial.println(" Pulse failed!");
+      distance = MAX_DISTANCE;
+    }
+    usPm = usCm;
+  }
+  return distance;
+}
+
+//gets average scan for pid 
+float averageScan() {
+  float a1 = usReadCm();
+  float a2 = usReadCm();
+  float a3 = usReadCm();
+  float a4 = usReadCm();
+  float a5 = usReadCm();
+  float a6 = usReadCm();
+  float a7 = usReadCm();
+
+  float average = ((a1 + a2 + a3 + a4 + a5 + a6 + a7) / 7);
+  Serial.print("| Average Read: ");
+  Serial.print(average);
+
+  return average;
+}
 
 //--------------------------PRINT-----------------------------
 void PRINT() {
-
   currentMillis = millis();
   if (currentMillis - print_prevMillis >= ENCODER_PERIOD) {
-
     Serial.print("|currY: ");
     Serial.print(curry);
     Serial.print("|currX: ");
@@ -284,33 +365,17 @@ void PRINT() {
     Serial.print(currtheta);
     Serial.print("|TargetANGLE: ");
     Serial.print(targetTheta);
-    //Serial.print("|Lmes: ");
-    //Serial.print(Sl);
-    //Serial.print("|Rmes: ");
-    //Serial.print(Sr);
     Serial.print("|Piddiff: ");
     Serial.print(pidResult);
     Serial.print("|distnace: ");
     Serial.print(targetDistance);
-    Serial.print("|LSpeed: ");
-    Serial.print(leftSpeed);
-    Serial.print("|RSpeed: ");
-    Serial.print(rightSpeed);
     Serial.print("|dT: ");
     Serial.print(dT);
-    Serial.print("|dX: ");
-    Serial.print(dX);
-    Serial.print("|dY: ");
-    Serial.print(dY);
     Serial.print("|Tarx: ");
     Serial.print(targetX);
     Serial.print("|targetY: ");
     Serial.print(targetY);
-    //Serial.print("|dS: ");
-    //Serial.print(dS);
     Serial.println("");
-    Serial.print("|Base_speed: ");
-    Serial.print(BASE_SPEED);
     print_prevMillis = currentMillis;
-  }  //timer
-}  //print
+  }
+}

@@ -36,16 +36,16 @@ const float WHEEL_CIRCUMFERENCE = 10.531;
 float Sl = 0.0F;
 float Sr = 0.0F;
 
-//PID
-int MAX_SPEED = 200;
-float MIN_SPEED = 50;
+//PID 
+int MAX_SPEED = 400;
+float MIN_SPEED = -400;
 
 float rightSpeed = 0;
 float leftSpeed = 0;
 
-const double KP = 5.0;  // Adjust kp for quicker response
-const double KI = 2;  // Reduce ki for less integration
-const double KD = 3;  // Increase kd for faster damping
+const double KP = 1.0; // Adjust kp for quicker response    
+const double KI = 0.0; // Reduce ki for less integration   
+const double KD = 0.2; // Increase kd for faster damping  
 
 //GOALS
 const int NUMBER_OF_GOALS = 3;
@@ -60,7 +60,7 @@ float targetY = yGoals[goalnum];
 
 float currx = 0;
 float curry = 0;
-float currtheta = -1.571;  //0;//1.571; //90 in radians?
+float currtheta = -1.571;//0;//1.571; //90 in radians?
 
 const float WHEEL_DIS = 8.5;
 
@@ -101,13 +101,13 @@ void loop() {
 }  //loop
 
 //METHIDS------------------------------------------------------------------------------
-void PRINT() {
+void PRINT(){
   Serial.print("|Lmes: ");
   Serial.print(Sl);
   Serial.print("|Rmes: ");
   Serial.print(Sr);
-
-
+  
+  
   //Serial.print("|LSpeed: ");
   //Serial.print(leftSpeed);
   //Serial.print("|RSpeed: ");
@@ -131,33 +131,33 @@ void PRINT() {
   Serial.print("|dY: ");
   Serial.print(dY);
  */
-  Serial.println(" ");
-}  //print
+ Serial.println(" ");
+}//print
 
 
-void calculatepos() {
-  dS = (Sr + Sl) / 2;
-  dT = (Sr - Sl) / WHEEL_DIS;
-  dX = (dS * sin(currtheta + (dT / 2.0))) * -1;  //should be cos
-  dY = dS * cos(currtheta + (dT / 2.0));         // should be sin
-}  //calculate pos
+void calculatepos (){
+  dS = (Sr + Sl)/2;
+  dT = (Sr - Sl)/WHEEL_DIS;
+  dX = (dS * sin(currtheta + (dT/2.0))) *-1; //should be cos
+  dY = dS * cos(currtheta + (dT/2.0)); // should be sin 
+  }//calculate pos
 
 //this updates the values of pos for the next calculation
-void updatepos() {
+void updatepos (){
   currx = dX;
   curry = dY;
-  currtheta = dT;
-}  //deltaXY
+  currtheta = dT; 
+}//deltaXY
 
 //this one gives the distnce, alllowing us to slow down
 float targetDistance() {
   float distance = 0;
-  // Calculate the difference between current position and target position in x and y directions
-  float xdiff = targetX - currx;
-  float ydiff = targetY - curry;
-  distance = sqrt(xdiff * xdiff + ydiff * ydiff);
-  Serial.print("|distnace: ");
-  Serial.print(distance);
+// Calculate the difference between current position and target position in x and y directions
+    float xdiff = targetX - currx; 
+    float ydiff = targetY - curry; 
+    distance = sqrt(xdiff * xdiff + ydiff * ydiff);
+    Serial.print("|distnace: ");
+    Serial.print(distance);
   return distance;
 }  //target
 
@@ -166,16 +166,16 @@ float targetDistance() {
 //takes the actual theta, and then determines desidredtheta, and to get desired theta, we need to calculate that based on the slope of a line
 //yeilds the target angle we neeed for pid calc
 float targetAngle() {
-  // Calculate the difference between current position and target position in x and y directions
-  float dx = targetX - currx;
-  float dy = targetY - curry;
-  float angle = atan2(dy, dx);
-  //
-  //angle = (angle*PI)/180;
-  Serial.print("|TargetANGLE: ");
-  Serial.print(angle);
-  return angle;
-}  //targetangle
+    // Calculate the difference between current position and target position in x and y directions
+    float dx = targetX - currx; 
+    float dy = targetY - curry; 
+    float angle = atan2(dy, dx);
+    //
+    //angle = (angle*PI)/180;
+    Serial.print("|TargetANGLE: ");
+    Serial.print(angle);
+    return angle;
+}//targetangle
 
 
 //---PID
@@ -189,15 +189,15 @@ float pidcalc(float desiredangle) {
   kiTotal += error;
   double integral = KI * kiTotal;
   //Kd derivative
-  float derivative = KD * (error - previousError);
-  previousError = error;
-  //sum
-  float pidResult = proportional + integral + derivative;
+  float derivative = KD * (error - previousError); 
+  previousError = error; 
+  //sum 
+  float pidResult = proportional + integral + derivative; 
 
   pidResult = constrain(pidResult, -3.14, 3.14);
-  //apply the sum to the motors, one will be +pidSUm, the other -pidSum
-  Serial.print("|Piddiff: ");
-  Serial.print(pidResult);
+  //apply the sum to the motors, one will be +pidSUm, the other -pidSum 
+  Serial.print("|Piddiff: "); 
+  Serial.print(pidResult); 
   return pidResult;
 }  //PID
 
@@ -269,9 +269,9 @@ void checkEncoders() {
     countsRight += encoders.getCountsAndResetLeft();
 
     // Calculate the distance traveled based on the encoder counts
-    float distanceLeft = (((countsLeft - prevLeft) / (CLICKS_PER_ROTATION * GEAR_RATIO) * WHEEL_CIRCUMFERENCE));
-    float distanceRight = (((countsRight - prevRight) / (CLICKS_PER_ROTATION * GEAR_RATIO) * WHEEL_CIRCUMFERENCE));
-
+    float distanceLeft = (((countsLeft - prevLeft) / (CLICKS_PER_ROTATION * GEAR_RATIO) * WHEEL_CIRCUMFERENCE)*-1);
+    float distanceRight = (((countsRight - prevRight) / (CLICKS_PER_ROTATION * GEAR_RATIO) * WHEEL_CIRCUMFERENCE)*-1);
+    
     // Update the values of Sl and Sr
     Sl += distanceLeft;
     Sr += distanceRight;

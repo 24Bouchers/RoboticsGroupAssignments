@@ -42,16 +42,16 @@ int importantdistance = 0;
 const int checkdefault = 1000;
 const int distancedefault = 30;
 
-const int defaulthead = 90;
-const int fronthead = 90;
-int headpos = 90;
-bool front = false;
-int check2 = 0;
-int frontScan = 90;
+int headPositions[2];
+int headReads[2];
 
-const int HEAD_CENTER_ANGLE = 90;
 const int HEAD_LEFT_ANGLE = 60;
+const int HEAD_CENTER_ANGLE = 90;
 const int HEAD_RIGHT_ANGLE = 120;
+
+
+int counter = 0;
+bool returno = false;
 
 // Define the minimum and maximum values for check frequency and important distance
 const int minCheckFrequency = 50;    // Minimum allowed check frequency
@@ -71,6 +71,7 @@ unsigned long calc2_prevMillis;
 unsigned long check2_prevMillis;
 unsigned long move_prevMillis;
 unsigned long print_prevMillis;
+unsigned long us_sensor_prvMillis;
 
 //left and right
 long countsLeft = 0;
@@ -149,7 +150,6 @@ void setup() {
   motors.flipLeftMotor(true);
   motors.flipLeftMotor(true);
 
-  headpos = defaulthead;
   checkfrequency = checkdefault;
   importantdistance = distancedefault;
 
@@ -164,6 +164,10 @@ void setup() {
   Serial.print("STARTING CF");
   Serial.println(checkfrequency);
 
+  headPositions[0] = HEAD_LEFT_ANGLE;
+  headPositions[1] = HEAD_CENTER_ANGLE;
+  headPositions[2] = HEAD_RIGHT_ANGLE;
+
   Serial.println("------------------------------------STARTING UP---------------------------------------------");
   buzzer.play("c32");
 
@@ -172,17 +176,12 @@ void setup() {
 
 void loop() {
   if (!end) {
-    checkEncoders();  //checks the distance  ENCODERS
-    //moveHead(HEAD_LEFT_ANGLE);
-   // float leftDistance = averageScan();
-    //moveHead(HEAD_CENTER_ANGLE);
-    //float centerDistance = averageScan();
-    //moveHead(HEAD_RIGHT_ANGLE);
-    //float rightDistance = averageScan();
-    calculatepos(); //CALC  CALC
-    checkTarget(); //CHECK
-    Move(); //MOVE 
-    PRINT();
+    //checkEncoders();  //checks the distance  ENCODERS
+    //calculatepos(); //CALC  CALC
+    //checkTarget(); //CHECK
+    //Move(); //MOVE 
+    scan();
+    //PRINT();
   } else {
     motors.setSpeeds(0, 0);
   }
@@ -191,9 +190,33 @@ void loop() {
 //---------------------METHODS----------------------------
 
 //-------------------------HEAD---------------------------
-void moveHead(int angle) {
-  headServo.write(angle);
-  delay(500); // Adjust delay as needed
+
+void scan()  {
+  if (counter == 0){
+    returno = false; 
+    headServo.write(headPositions[0]);
+    headReads[0] = averageScan();
+
+  }
+  else if ( counter == 3){
+    Serial.println("Center");
+    headServo.write(headPositions[1]);
+    headReads[1] = averageScan();
+  }
+  else if ( counter == 6){
+    Serial.println("Right");
+    returno = true; 
+    headServo.write(headPositions[2]);
+    headReads[2] = averageScan();
+  }
+
+  if (returno){
+    counter -= 1;
+  }
+  else{
+    counter += 1;
+  }
+  Serial.println(counter);
 }
 
 //-------------------------ENCODERS---------------------------
@@ -328,7 +351,7 @@ float usReadCm() {
     distance = duration * 0.034 / 2;
     if (distance > MAX_DISTANCE) distance = MAX_DISTANCE;
     if (distance == 0) {
-      Serial.println(" Pulse failed!");
+    // Serial.println(" Pulse failed!");
       distance = MAX_DISTANCE;
     }
     usPm = usCm;
@@ -347,8 +370,8 @@ float averageScan() {
   float a7 = usReadCm();
 
   float average = ((a1 + a2 + a3 + a4 + a5 + a6 + a7) / 7);
-  Serial.print("| Average Read: ");
-  Serial.print(average);
+ // Serial.print("| Average Read: ");
+  //Serial.print(average);
 
   return average;
 }

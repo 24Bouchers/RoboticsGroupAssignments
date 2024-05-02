@@ -28,8 +28,6 @@ const int TRIG_PIN = 4;
 //ultrasonic maxes
 const int MAX_DISTANCE = 200;  // (200cm /2 meters)
 //ultrasonic timing
-unsigned long usCm;
-unsigned long usPm;
 const unsigned long US_PERIOD = 100;
 //current US distance reading
 float distance = 0;
@@ -68,6 +66,8 @@ unsigned long move_prevMillis;
 unsigned long print_prevMillis;
 unsigned long servo_prevMillis;
 unsigned long avoid_prevMillis;
+unsigned long us_prevMillis;
+
 //left and right
 long countsLeft = 0;
 long countsRight = 0;
@@ -101,8 +101,8 @@ bool encoder_done = false;  //f
 bool calc_done = false;     //f
 bool move_done = true;      // to start the loop...
 bool check_done = false;    //f
-bool servo_done = false;// should start false, for testing
-bool average_done = false;
+bool servo_done = false;    // should start false, for testing
+bool us_done = false;
 
 //-------------------------Speeds---------------------------
 int MAX_SPEED = 100;
@@ -180,12 +180,12 @@ void setup() {
 void loop() {
   if (!end) {
 
-    servo();          //scan
-    usReadCm();       //
-    checkEncoders();  //checks the distance  ENCODERS
-    calculatepos();   //CALC  CALC
-    checkTarget();    //CHECK
-    Move();           //MOVE
+    servo();          //Move the head Position
+    usReadCm();       //Read the US Distance
+    checkEncoders();  //checks the distance
+    calculatepos();   //Calculate our position
+    checkTarget();    //Check to see if we are at our goal
+    Move();           //Move
 
     PRINT();
   }  //if
@@ -223,10 +223,11 @@ void servo() {
 //-------------------------USREAD---------------------------
 void usReadCm() {
   //Serial.print("Starting");
-  usCm = millis();
-  if (usCm > usPm + US_PERIOD && servo_done) {
+  currentMillis = millis();
+  if (currentMillis > us_prevMillis + US_PERIOD && servo_done) {
     //clears the trig_pin (set low)
     digitalWrite(TRIG_PIN, LOW);
+    //TODO Adjust Microseconds?
     delayMicroseconds(2);
 
     //Set the TRIG_PIN HIGH (ACTIVE) for 10 microseconds
@@ -255,8 +256,8 @@ void usReadCm() {
     }
 
     //update the prevmillis
-    usPm = usCm;
-    average_done = true;
+    us_prevMillis = currentMillis;
+    us_done = true;
     servo_done = false;
   }  //if
   //  return distance;
@@ -302,6 +303,8 @@ void calculatepos() {
     //float derivative = KD * (error - previousError);
     //previousError = error;
     //sum
+
+    //Calculates the margine of error based of US_Sensor Reads
     if (measured_distance_front < 40) {
       error_angle = desired_distance - measured_distance_front;
       proportional_front = KPfront * error_angle;
@@ -323,13 +326,14 @@ void calculatepos() {
     else {
       proportional_right = prev_proportional_right;
     }
-  
 
+    //TODO whats avoidance_speed for? Is this sposed to change the base speed depending on how close to a wall the target is?
     avoidance_speed = proportional_front + proportional_left + proportional_right;  //+intergal + derivative;
-    //"saving" older values, the /2 two so that way its not constant, need a better fix for it thou 
-    prev_proportional_front = proportional_front - proportional_front/3;
-    prev_proportional_left = proportional_left -proportional_left/3;
-    prev_proportional_right = proportional_right - proportional_right/3;
+    //"saving" older values, the /2 two so that way its not constant, need a better fix for it thou
+    //TODO why would this be constant? Maybe we add another if statement if measured distance == maxdistance to set the error to 0?
+    prev_proportional_front = proportional_front - proportional_front / 3;
+    prev_proportional_left = proportional_left - proportional_left / 3;
+    prev_proportional_right = proportional_right - proportional_right / 3;
     pidResult = proportional1 + avoidance_speed;  //+intergal + derivative;
     //pidResult = constrain(pidResult, -3.14, 3.14);
     //apply the sum to the motors, one will be +pidSUm, the other -pidSum
@@ -342,13 +346,13 @@ void calculatepos() {
 //-------------------------ENCODERS---------------------------
 void checkEncoders() {
   currentMillis = millis();
-  if (currentMillis - encoder_prevMillis >= ENCODER_PERIOD && average_done) {
+  if (currentMillis - encoder_prevMillis >= ENCODER_PERIOD && us_done) {
     countsLeft += encoders.getCountsAndResetLeft();
     countsRight += encoders.getCountsAndResetRight();
 
     // Calculate the distance traveled based on the encoder counts
-    float distanceLeft = (((countsLeft - prevLeft) / (CLICKS_PER_ROTATION * GEAR_RATIO) * WHEEL_CIRCUMFERENCE) * -1);     //for backwards
-    float distanceRight = (((countsRight - prevRight) / (CLICKS_PER_ROTATION * GEAR_RATIO) * WHEEL_CIRCUMFERENCE) * -1);  //for backwards
+    float distanceLeft = (((countsLeft - prevLeft) / (CLICKS_PER_ROTATION * GEAR_RATIO) * WHEEL_CIRCUMFERENCE) * -1);     // -1 for backwards
+    float distanceRight = (((countsRight - prevRight) / (CLICKS_PER_ROTATION * GEAR_RATIO) * WHEEL_CIRCUMFERENCE) * -1);  // -1for backwards
 
     // Update the values of Sl and Sr, but not accumulating
     Sl = distanceLeft;
@@ -419,7 +423,6 @@ void Move() {
     if (targetDistance < 10) {
       BASE_SPEED = constrain(BASE_SPEED / 2, MIN_SPEED, MAX_SPEED);
     }  //i
-
     else {
       BASE_SPEED = 70;
     }

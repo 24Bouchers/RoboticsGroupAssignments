@@ -155,7 +155,7 @@ void setup() {
 
   //initalize head position to start 
   headServo.attach(HEAD_SERVO_PIN);
-  headServo.write(headpos);
+  headServo.write(90);
   
   //initalize ultra sonic
   pinMode(ECHO_PIN, INPUT);
